@@ -1,0 +1,30 @@
+{
+    "name": "arielenter/array-to-phpdoc",
+    "description": "Generates phpdoc comments.",
+    "version": "1.0.0",
+    "dist": {
+        "url": "https://github.com/arielenter/array-to-phpdoc/archive/refs/tags/v1.0.0.tar.gz",
+        "type": "tar"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^12.3"
+    },
+    "license": "GPL-3.0",
+    "autoload": {
+        "psr-4": {
+            "Arielenter\\ArrayToPhpdoc\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests\/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Ariel Del Valle Lozano",
+            "email": "arielmazatlan@gmail.com"
+        }
+    ],
+    "require": {}
+}
