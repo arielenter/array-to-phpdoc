@@ -9,121 +9,148 @@
  * @package   Arielenter\ArrayToPhpdoc
  * @author    Ariel Del Valle Lozano <arielmazatlan@gmail.com>
  * @copyright 2025 Ariel Del Valle Lozano
- * @license   http://www.gnu.org/licenses/gpl-3.0.html GNU General Public 
+ * @license   http://www.gnu.org/licenses/gpl-3.0.html GNU General Public
  *            License (GPL) version 3
  * @link      https://github.com/arielenter/array-to-phpdoc
  */
 
 namespace Arielenter\ArrayToPhpdoc;
 
-/**
- * Generates phpdoc comments.
- */
+/** Generates phpdoc comments as strings. */
 class PhpdocGenerator
 {
     /**
-     * @var int $indentation How many white spaces should precede each phpdoc
-     *                       comment line.
+     * @var int $indentWidth If it’s value is more than 0, an indentation will
+     *                       be given to the resulting phpdoc comment. If
+     *                       property ‘useTabForIndentation’ is set to true, a
+     *                       single tab will be used and this value will be used
+     *                       as a reference of its size (in spaces) to construct
+     *                       the phpdoc comment, otherwise a set of spaces will
+     *                       be used as indentation using this property as the
+     *                       amount of spaces to use.
      */
-    protected int $indentation = 0;
-    
+    protected int $indentWidth = 0;
+
     /**
-     * @var int $maxLineLength How long should a line go up to before the last
-     *                         column has to be wrapped.
+     * @var bool $useTabForIndentation Establishes weather or not a tab should
+     *                                 be used for indentation instead of
+     *                                 spaces whenever property ‘indentWidth’ is
+     *                                 greater than 0.
+     */
+    protected bool $useTabForIndentation = false;
+
+    /**
+     * @var int $maxLineLength How long (number of characters) a line can go up
+     *                         to before is wrapped.
      */
     protected int $maxLineLength = 80;
-    
+
     /**
-     * @var int $minLastColumnWidth Even if the max line length has to be broken,
-     *                              it defines the minimum width of the last
-     *                              column. This might happen when the sum of the
-     *                              first columns width don't leave a lot of
-     *                              spare space for the last column.
+     * @var int $minLastColumnWidth Even if the max line length has to be
+     *                              broken, it defines the minimum width (number
+     *                              of characters) of the last column of text.
+     *                              This might happen when the sum of the first
+     *                              columns widths don't leave a lot of spare
+     *                              space for the last column in a table.
      */
     protected int $minLastColumnWidth = 20;
     protected string $bullet = ' * ';
 
     /**
-     * Generates a phpdoc comment from elements provided in an array.
+     * Generates a phpdoc comment as a string from the values of an array.
      *
-     * Table’s columns will be spaced accordingly. Indentation and word wrap is
-     * handle in accordance to the properties ‘indentation’, ‘maxLineLength’ and
-     * ‘minLastColumnWidth’. Default indentation is ‘0’, set one with method
-     * ‘setIndentation’ before the phpdoc comment is produced if desired.
+     * It handles the phpdoc’s comment text formatting: The opener, closer and
+     * starting asterisk in between lines (only if a multi-line phpdoc is
+     * needed), line wrap, indentation and plain text table creations.
      *
-     * @param array $array Source of the elements that will conform the phpdoc
-     *                     comment, this elements must be given in a set of
-     *                     tables and rows representing each part of a phpdoc
-     *                     comment. For instance, when creating a phpdoc comment
-     *                     for a method, we might use one table with a single 
-     *                     row and column for its general description. Then, we
-     *                     could use another table with multiple rows, one for
-     *                     each of the method's arguments, and multiple columns,
-     *                     one for each tag and annotation. For instance, 
-     *                     column one might contain the tag ‘@param’, and the 
-     *                     later ones the annotation of ‘string’, ‘$name’ and 
-     *                     ‘Argument description.' respectably. Each row is an 
-     *                     array of strings, and each table is an array contain
-     *                     them. Each table must follow this convention. The 
-     *                     only exception to this would be for a table with both
-     *                     a single row with single column, in which case it 
-     *                     might be represented by a single string instead of an
-     *                     array. Examples of this will be the aforementioned  
-     *                     first table for the method's summary or description. 
-     *                     Beware that a table with one row but multiple columns
-     *                     must still be encapsulated, meaning an array of 
-     *                     strings as the single row inside an array as its 
-     *                     table. An example of this, and continuing with our 
-     *                     hypothetical method phpdoc, would be the tag 
-     *                     ‘@return’, which would only required a single row but
-     *                     multiple columns. Array keys don't make a difference,
-     *                     so you may use them or omit them at will without any
-     *                     repercussion.
+     * @param array $array Array containing the values that will be used to
+     *                     create a phpdoc comment. Supported values are:
+     *                     Strings, which could be used for summaries and
+     *                     descriptions; Arrays containing multiple arrays of
+     *                     strings, which can be used to create tables like
+     *                     argument lists or group document tags that go along
+     *                     together; And finally arrays of strings, which may be
+     *                     used for single row tables like the ‘@return’ tag.
+     *                     Array keys don't make a difference, so you may use
+     *                     them or omit them at will without any repercussion.
      *
-     * @return string Phpdoc comment created from array given.
+     * @return string Phpdoc comment created from the array given.
      */
     public function fromArray(array $array): string
     {
-        $array = array_map(fn($v) => (is_string($v)) ? [[ $v ]]: $v, $array);
-        $array = $this->useIntKeysOnly($array);
+        $array = $this->convertStringsToOneRowOneColumnTables($array);
+        $array = $this->convertArraysOfStringsToOneRowMultiClmnsTables($array);
         $phpdocBlocks = array_map(
             fn($table) => $this->createPhpdocBlock($table),
             $array
         );
-        $beginning = $this->indentStr() . "/**" . $this->lineStart();
-        $ending = "\n" . $this->indentStr() . ' */';
-        $separator = "\n" . $this->indentStr() . " *" . $this->lineStart();
-        return $beginning . join($separator, $phpdocBlocks) . $ending;
+        return $this->createPhpdocFromBlocks($phpdocBlocks);
     }
 
-    protected function useIntKeysOnly($array): array
-    {
-        return array_map(fn($t) => array_map('array_values', $t), $array);
+    /**
+     * @param array $array
+     */
+    protected function convertStringsToOneRowOneColumnTables(
+        array $array
+    ): array {
+        return array_map(fn($t) => (is_string($t)) ? [[ $t ]] : $t, $array);
     }
 
+    /**
+     * @param array $array
+     */
+    protected function convertArraysOfStringsToOneRowMultiClmnsTables(
+        array $array
+    ): array {
+        return array_map(
+            function($table) {
+                $table = array_values($table);
+                if(is_string($table[0])) {
+                    $table = [ $table ];
+                }
+                return $table;
+            },
+            $array
+        );
+    }
+
+    /**
+     * @param array $table
+     */
     protected function createPhpdocBlock(array $table): string
     {
+        $table = array_map('array_values', $table);
         $columnsWidth = $this->getColumnsWidth($table);
         $lastColumnKey = array_key_last($columnsWidth);
         array_pop($columnsWidth);
-        
+
         $table = $this->formatAllColumnsButLast($table, $columnsWidth);
 
-        $table = $this->formatLastColumn($table, $lastColumnKey, $columnsWidth);
+        $table = $this->formatLastColumn(
+            $table, $lastColumnKey, array_sum($columnsWidth)
+        );
 
-        $phpdocLines = array_map(fn($r) => join('', $r), $table);
+        $phpdocLines = array_map(fn($row) => join('', $row), $table);
         $phpdocLines = array_map('rtrim', $phpdocLines);
         return join($this->lineStart(), $phpdocLines);
     }
 
+    /**
+     * @param array $table
+     *
+     * @return array
+     */
     protected function getColumnsWidth(array $table): array
     {
         return array_map(
-            fn($column) => max(array_map('strlen', $column)) + 1,
+            fn($column) => max(array_map('strlen', $column)) + 1, // +1 space
             $this->getColumns($table)
         );
     }
 
+    /**
+     * @param array $table
+     */
     protected function getColumns(array $table): array
     {
         $columns = [];
@@ -135,6 +162,12 @@ class PhpdocGenerator
         return $columns;
     }
 
+    /**
+     * @param array          $table
+     * @param array<int,int> $columnsWidth
+     *
+     * @return array
+     */
     protected function formatAllColumnsButLast(
         array $table, array $columnsWidth
     ): array {
@@ -147,28 +180,29 @@ class PhpdocGenerator
         );
     }
 
+    /**
+     * @param array          $row
+     * @param array<int,int> $columnsWidth
+     */
     protected function padCells(array $row, array $columnsWidth): array
     {
-        return array_map(function(?string $cell, ?int $width) {
-            if (is_null($cell) || is_null($width)) {
-                return $cell;
-            }
-            return str_pad($cell, $width);
-        }, $row, $columnsWidth);
+        return array_map(
+            function(?string $cell, ?int $width) {
+                if (is_null($cell) || is_null($width)) {
+                    return $cell;
+                }
+                return str_pad($cell, $width);
+            },
+            $row, $columnsWidth
+        );
     }
 
-    protected function getLastColumnWidth(int $widthsSum): int
-    {
-        $calculation = $this->maxLineLength - $this->indentation -
-            strlen($this->bullet) - $widthsSum;
-        return ($calculation > $this->minLastColumnWidth) ? $calculation : $this
-            ->minLastColumnWidth;
-    }
-
+    /**
+     * @param array $table
+     */
     protected function formatLastColumn(
-        array $table, int $key, array $columnsWidth
+        array $table, int $key, int $widthsSum
     ): array {
-        $widthsSum = array_sum($columnsWidth);
         $width = $this->getLastColumnWidth($widthsSum);
         $break = $this->lineStart() . str_repeat(' ', $widthsSum);
         return array_map(
@@ -177,14 +211,25 @@ class PhpdocGenerator
                     $row[$key] = wordwrap($row[$key], $width, $break);
                 }
                 return $row;
-            }
-            , $table
+            },
+            $table
         );
+    }
+
+    protected function getLastColumnWidth(int $widthsSum): int
+    {
+        $calculation = $this->maxLineLength - $this->indentWidth -
+            strlen($this->bullet) - $widthsSum;
+        return ($calculation > $this->minLastColumnWidth) ? $calculation : $this
+            ->minLastColumnWidth;
     }
 
     protected function indentStr(): string
     {
-        return str_repeat(' ', $this->indentation);
+        if ($this->useTabForIndentation == true && $this->indentWidth > 0) {
+            return "\t";
+        }
+        return str_repeat(' ', $this->indentWidth);
     }
 
     protected function lineStart(): string
@@ -193,22 +238,69 @@ class PhpdocGenerator
     }
 
     /**
-     * Sets the ‘indentation’ property.
-     *
-     * Indentation property defines how many white spaces should precede each
-     * phpdoc comment line.
+     * @param array $blocks
      */
-    public function setIndentation(int $indentation): self
+    protected function createPhpdocFromBlocks(array $blocks): string
     {
-        $this->indentation = $indentation;
+        $opener = "/**";
+        $closer = ' */';
+        if (count($blocks) == 1 && !str_contains("\n", $blocks[0])) {
+            $oneLiner = $opener . ' ' . $blocks[0] . $closer;
+            $length = $this->indentWidth + strlen($oneLiner);
+            if ($length <= $this->maxLineLength) {
+                return $this->indentStr() . $oneLiner;
+            }
+        }
+        $opening = $this->indentStr() . $opener . $this->lineStart();
+        $closing = "\n" . $this->indentStr() . $closer;
+        $separator = "\n" . $this->indentStr() . " *" . $this->lineStart();
+        return $opening . join($separator, $blocks) . $closing;
+    }
+
+    /**
+     * Sets the value of the 'indentWidth' property.
+     *
+     * If a value greater than 0 is stablished, an indentation will be given to
+     * the resulting phpdoc comment. If property ‘useTabForIndentation’ is set
+     * to true, a single tab will be used and this value will be used as a
+     * reference of its size (in spaces) to construct the phpdoc comment,
+     * otherwise a set of spaces will be used as indentation using this property
+     * as the amount of spaces to use.
+     */
+    public function setIndentWidth(int $width): self
+    {
+        $this->indentWidth = $width;
         return $this;
     }
 
-    public function getIndentation(): int
+    public function getIndentWidth(): int
     {
-        return $this->indentation;
+        return $this->indentWidth;
     }
 
+    /**
+     * Sets the ‘useTabForIndentation’ property.
+     *
+     * Establishes weather or not a tab would be used for indentation instead of
+     * spaces, whenever property ‘indentWidth’ is greater than 0.
+     */
+    public function setUseTabForIndentation(bool $bool): self
+    {
+        $this->useTabForIndentation = $bool;
+        return $this;
+    }
+
+    public function getUseTabForIndentation(): bool
+    {
+        return $this->useTabForIndentation;
+    }
+
+    /**
+     * Sets the ‘maxLineLength’ property,
+     *
+     * Stablishes how long (number of characters) a line can go up to before is
+     * wrapped.
+     */
     public function setMaxLineLength(int $length): self
     {
         $this->maxLineLength = $length;
@@ -220,6 +312,14 @@ class PhpdocGenerator
         return $this->maxLineLength;
     }
 
+    /**
+     * Sets the ‘minLastColumnWidth’ property.
+     *
+     * Even if the max line length has to be broken, it defines the minimum
+     * width (number of characters) of the last column of text. This might
+     * happen when the sum of the first columns widths don't leave a lot of
+     * spare space for the last column in a table.
+     */
     public function setMinLastColumnWidth(int $length): self
     {
         $this->minLastColumnWidth = $length;
