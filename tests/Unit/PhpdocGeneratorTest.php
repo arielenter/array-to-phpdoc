@@ -70,8 +70,8 @@ class PhpdocGeneratorTest extends TestCase
     #[Test]
     public function single_line_phpdoc_are_used_if_values_fit(): void
     {
-        $array = [[ '@var', 'int', 'Very short description.' ]];
-        $expected = '/** ' . join(' ', $array[0]) . ' */';
+        $array = ['example' => [ '@var', 'int', 'Very short description.' ]];
+        $expected = '/** ' . join(' ', $array['example']) . ' */';
         $generator = new PhpdocGenerator;
         $actual = $generator->fromArray($array);
         $this->assertEquals($expected, $actual);

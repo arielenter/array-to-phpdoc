@@ -244,6 +244,7 @@ class PhpdocGenerator
     {
         $opener = "/**";
         $closer = ' */';
+        $blocks = array_values($blocks);
         if (count($blocks) == 1 && !str_contains("\n", $blocks[0])) {
             $oneLiner = $opener . ' ' . $blocks[0] . $closer;
             $length = $this->indentWidth + strlen($oneLiner);
