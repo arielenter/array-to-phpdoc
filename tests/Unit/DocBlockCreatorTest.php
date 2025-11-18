@@ -2,18 +2,18 @@
 
 namespace Tests\Unit;
 
-use Arielenter\ArrayToPhpdoc\PhpdocGenerator;
+use Arielenter\ArrayToPhpdoc\DocBlockCreator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-class PhpdocGeneratorTest extends TestCase
+class DocBlockCreatorTest extends TestCase
 {
     #[Test]
-    public function creates_phpdoc_from_an_array(): void
+    public function creates_a_doc_block_from_an_array(): void
     {
         [ $array, $expected ] = $this->exampleOne();
 
-        $actual = (new PhpdocGenerator)->fromArray($array);
+        $actual = (new DocBlockCreator)->fromArray($array);
 
         $this->assertEquals($expected, $actual);
     }
@@ -44,7 +44,7 @@ class PhpdocGeneratorTest extends TestCase
 
         $array[0] = $array[0][0][0];
 
-        $actual = (new PhpdocGenerator)->fromArray($array);
+        $actual = (new DocBlockCreator)->fromArray($array);
 
         $this->assertEquals($expected, $actual);
     }
@@ -62,38 +62,41 @@ class PhpdocGeneratorTest extends TestCase
             ]
         ];
 
-        $actual = (new PhpdocGenerator)->fromArray($arrayWithStringKeys);
+        $actual = (new DocBlockCreator)->fromArray($arrayWithStringKeys);
 
         $this->assertEquals($expected, $actual);
     }
 
     #[Test]
-    public function single_line_phpdoc_are_used_if_values_fit(): void
+    public function a_single_line_doc_block_is_created_if_it_fits_in_one_line(
+    ): void
     {
         $array = ['example' => [ '@var', 'int', 'Very short description.' ]];
         $expected = '/** ' . join(' ', $array['example']) . ' */';
-        $generator = new PhpdocGenerator;
-        $actual = $generator->fromArray($array);
+        $docCreator = new DocBlockCreator;
+        $actual = $docCreator->fromArray($array);
         $this->assertEquals($expected, $actual);
 
-        $this->singleLineExampleTwo($generator);
+        $this->singleLineExampleTwo($docCreator);
 
-        $this->notAValidSingleLineExample($generator);
+        $this->notAValidSingleLineExample($docCreator);
     }
 
-    public function singleLineExampleTwo(PhpdocGenerator $generator): void
+    public function singleLineExampleTwo(DocBlockCreator $docCreator): void
     {
         $array = [ 'Short desctiption.' ];
         $expected = '/** ' . join(' ', $array) . ' */';
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
         $this->assertEquals($expected, $actual);
     }
 
-    public function notAValidSingleLineExample(PhpdocGenerator $generator): void
-    {
+    public function notAValidSingleLineExample(
+        DocBlockCreator $docCreator
+    ): void {
+        // Just a single character too long
         $array = [ 'Very ' . str_repeat('long ', 12) . 'to fit...' ];
         $expected = "/**\n * " . $array[0] . "\n */";
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
         $this->assertEquals($expected, $actual);
     }
 
@@ -102,17 +105,17 @@ class PhpdocGeneratorTest extends TestCase
     {
         $indentWidth = 6;
 
-        [ $array, $expected, $generator ] = $this->exampleTwo($indentWidth);
+        [ $array, $expected, $docCreator ] = $this->exampleTwo($indentWidth);
 
-        $this->assertEquals($indentWidth, $generator->getIndentWidth());
+        $this->assertEquals($indentWidth, $docCreator->getIndentWidth());
 
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
 
         $this->assertEquals($expected, $actual);
     }
 
     /**
-     * @return array{array,string,PhpdocGenerator}
+     * @return array
      */
     public function exampleTwo(
         int $indentWidth = 4, bool $useTab = false
@@ -132,12 +135,12 @@ class PhpdocGeneratorTest extends TestCase
             . $array[1][1][1] . '  ' . $array[1][1][2] . ' ' . $array[1][1][3]
         . "\n *\n * " . join(' ', $array[2][0]) . "\n */";
 
-        $generator = (new PhpdocGenerator)->setIndentWidth($indentWidth);
-        ($useTab == true) && $generator->setUseTabForIndentation(true);
+        $docCreator = (new DocBlockCreator)->setIndentWidth($indentWidth);
+        ($useTab == true) && $docCreator->setUseTabForIndentation(true);
 
         $expected = $this->indentContent($indentWidth, $expected, $useTab);
 
-        return [ $array, $expected, $generator ];
+        return [ $array, $expected, $docCreator ];
     }
 
     public function indentContent(
@@ -159,11 +162,11 @@ class PhpdocGeneratorTest extends TestCase
     #[Test]
     public function tab_can_be_used_for_indentation(): void
     {
-        [ $array, $expected, $generator ] = $this->exampleTwo(useTab: true);
+        [ $array, $expected, $docCreator ] = $this->exampleTwo(useTab: true);
 
-        $this->assertTrue($generator->getUseTabForIndentation());
+        $this->assertTrue($docCreator->getUseTabForIndentation());
 
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
 
         $this->assertEquals($expected, $actual);        
     }
@@ -172,11 +175,11 @@ class PhpdocGeneratorTest extends TestCase
     #[Test]
     public function sngl_row_multi_cols_tbls_may_be_given_unnested(): void
     {
-        [ $array, $expected, $generator ] = $this->exampleTwo();
+        [ $array, $expected, $docCreator ] = $this->exampleTwo();
 
         $array[2] = $array[2][0];
 
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
 
         $this->assertEquals($expected, $actual);
     }
@@ -184,11 +187,11 @@ class PhpdocGeneratorTest extends TestCase
     #[Test]
     public function last_column_of_a_row_can_be_omitted(): void
     {
-        [ $array, $expected, $generator ] = $this->exampleTwo();
+        [ $array, $expected, $docCreator ] = $this->exampleTwo();
 
         $expected = str_replace(' ' . $array[1][1][3], '', $expected);
         unset($array[1][1][3]);
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
 
         $this->assertEquals($expected, $actual);
     }
@@ -196,49 +199,49 @@ class PhpdocGeneratorTest extends TestCase
     #[Test]
     public function last_column_is_wrap(): void
     {
-        [ $array, $expected, $generator ] = $this->exampleThree();
+        [ $array, $expected, $docCreator ] = $this->exampleThree();
 
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
 
         $this->assertEquals($expected, $actual);
     }
 
     /**
-     * @return array{array,string,PhpdocGenerator}
+     * @return array
      */
     public function exampleThree(
         int $indentWidth = 4, ?int $maxLength = null, bool $useTab = false
     ): array {
         $descs = [];
-        $generator = (new PhpdocGenerator)->setIndentWidth($indentWidth)
+        $docCreator = (new DocBlockCreator)->setIndentWidth($indentWidth)
             ->setUseTabForIndentation($useTab);
-        (!is_null($maxLength)) && $generator->setMaxLineLength($maxLength);
+        (!is_null($maxLength)) && $docCreator->setMaxLineLength($maxLength);
         
-        $descs[0] = $this->createFakeDesc(' * ', $generator);
+        $descs[0] = $this->createFakeDesc(' * ', $docCreator);
         $secondTable = [
             [ '@param', 'string', '$name' ], [ '@param', 'array',  '$longger' ]
         ];
         $threeColumns = ' * ' . join(' ', $secondTable[0]) . '    ';
-        $descs[] = $this->createFakeDesc($threeColumns, $generator);
-        $descs[] = $this->createFakeDesc($threeColumns, $generator);
+        $descs[] = $this->createFakeDesc($threeColumns, $docCreator);
+        $descs[] = $this->createFakeDesc($threeColumns, $docCreator);
         $thirdTable = [ '@return', 'string' ];
         $twoColumns = ' * ' . join(' ', $thirdTable) . ' ';
-        $descs[] = $this->createFakeDesc($twoColumns, $generator);
+        $descs[] = $this->createFakeDesc($twoColumns, $docCreator);
 
         $array = $this->createArray($descs, $secondTable, $thirdTable);
         $expected = $this->createExpected(
             $array, $descs, $threeColumns, $twoColumns, $indentWidth, $useTab
         );
-        return [ $array, $expected, $generator ];
+        return [ $array, $expected, $docCreator ];
     }
 
     public function createFakeDesc(
-        string $base, PhpdocGenerator $generator
+        string $base, DocBlockCreator $docCreator
     ): array {
         $offset = strlen($base);
-        $maxLineLength = $generator->getMaxLineLength();
-        $indentWidth = $generator->getIndentWidth();
-        $minLastColumnWidth = $generator->getMinLastColumnWidth();
+        $maxLineLength = $docCreator->getMaxLineLength();
+        $indentWidth = $docCreator->getIndentWidth();
+        $minLastColumnWidth = $docCreator->getMinLastColumnWidth();
         $widthCalculated = $maxLineLength - $indentWidth - $offset;
         $width = ($widthCalculated < $minLastColumnWidth) ? $minLastColumnWidth
             : $widthCalculated;
@@ -345,9 +348,9 @@ class PhpdocGeneratorTest extends TestCase
     #[Test]
     public function tab_indented_is_wraped_accordently(): void
     {
-        [ $array, $expected, $generator ] = $this->exampleThree(useTab: true);
+        [ $array, $expected, $docCreator ] = $this->exampleThree(useTab: true);
 
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
 
         $this->assertEquals($expected, $actual);
     }
@@ -357,11 +360,11 @@ class PhpdocGeneratorTest extends TestCase
     {
         $maxLength = 120;
 
-        [ $array, $expected, $generator ] = $this->exampleThree(6, $maxLength);
+        [ $array, $expected, $docCreator ] = $this->exampleThree(6, $maxLength);
 
-        $this->assertEquals($maxLength, $generator->getMaxLineLength());
+        $this->assertEquals($maxLength, $docCreator->getMaxLineLength());
 
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
 
         $this->assertEquals($expected, $actual);
 
@@ -372,12 +375,12 @@ class PhpdocGeneratorTest extends TestCase
     {
         $maxLength = 120;
 
-        [ $array, $expected, $generator ] = $this
+        [ $array, $expected, $docCreator ] = $this
             ->exampleThree(6, $maxLength, true);
 
-        $this->assertEquals($maxLength, $generator->getMaxLineLength());
+        $this->assertEquals($maxLength, $docCreator->getMaxLineLength());
 
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
 
         $this->assertEquals($expected, $actual);        
     }
@@ -385,35 +388,35 @@ class PhpdocGeneratorTest extends TestCase
     #[Test]
     public function last_column_has_a_minimum_width(): void
     {
-        [ $array, $expected, $generator ] = $this->exampleFour();
+        [ $array, $expected, $docCreator ] = $this->exampleFour();
 
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
 
         $this->assertEquals($expected, $actual);
     }
 
     /**
-     * @return array{array,string,PhpdocGenerator}
+     * @return array
      */
     public function exampleFour(?int $minLastColumnWidth = null): array
     {
         $indent = 4;
-        $generator = (new PhpdocGenerator)->setIndentWidth($indent);
-        (!is_null($minLastColumnWidth)) && $generator
+        $docCreator = (new DocBlockCreator)->setIndentWidth($indent);
+        (!is_null($minLastColumnWidth)) && $docCreator
             ->setMinLastColumnWidth($minLastColumnWidth);
         $exampleTable = [
             '@param', 'null|int|float|array|Countable',
             '$thisWillLeaveVeryLittleSpaceForTheLastColumn'
         ];
         $threeColumns = ' * ' . join(' ', $exampleTable) . ' ';
-        $desc = $this->createFakeDesc($threeColumns, $generator);
+        $desc = $this->createFakeDesc($threeColumns, $docCreator);
         $exampleTable[] = join(' ', $desc);
         $array = [[ $exampleTable ]];
 
         $wrap = $this->createWordwrap($desc, $threeColumns, $indent);
         $expected = "/**\n" . $threeColumns . $wrap . "\n */";
         $expected = $this->indentContent($indent, $expected);
-        return [ $array, $expected, $generator ];
+        return [ $array, $expected, $docCreator ];
     }
 
     #[Test]
@@ -421,11 +424,11 @@ class PhpdocGeneratorTest extends TestCase
     {
         $minWidth = 25;
 
-        [ $array, $expected, $generator ] = $this->exampleFour($minWidth);
+        [ $array, $expected, $docCreator ] = $this->exampleFour($minWidth);
 
-        $this->assertEquals($minWidth, $generator->getMinLastColumnWidth());
+        $this->assertEquals($minWidth, $docCreator->getMinLastColumnWidth());
 
-        $actual = $generator->fromArray($array);
+        $actual = $docCreator->fromArray($array);
 
         $this->assertEquals($expected, $actual);
     }

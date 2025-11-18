@@ -16,18 +16,18 @@
 
 namespace Arielenter\ArrayToPhpdoc;
 
-/** Generates phpdoc comments as strings. */
-class PhpdocGenerator
+/** Creates phpdoc's doc blocks as strings. */
+class DocBlockCreator
 {
     /**
      * @var int $indentWidth If it’s value is more than 0, an indentation will
-     *                       be given to the resulting phpdoc comment. If
-     *                       property ‘useTabForIndentation’ is set to true, a
-     *                       single tab will be used and this value will be used
-     *                       as a reference of its size (in spaces) to construct
-     *                       the phpdoc comment, otherwise a set of spaces will
-     *                       be used as indentation using this property as the
-     *                       amount of spaces to use.
+     *                       be given to the resulting doc block. If property
+     *                       ‘useTabForIndentation’ is set to true, a single
+     *                       tab will be used and this value will be used as a
+     *                       reference of its size (in spaces) to construct the
+     *                       doc block, otherwise a set of spaces will be used
+     *                       as indentation using this property as the amount
+     *                       of spaces to use.
      */
     protected int $indentWidth = 0;
 
@@ -57,34 +57,34 @@ class PhpdocGenerator
     protected string $bullet = ' * ';
 
     /**
-     * Generates a phpdoc comment as a string from the values of an array.
+     * Generates a phpdoc's doc block as a string from the values of an array.
      *
-     * It handles the phpdoc’s comment text formatting: The opener, closer and
+     * It handles the doc block's text formatting: The opener, closer and
      * starting asterisk in between lines (only if a multi-line phpdoc is
      * needed), line wrap, indentation and plain text table creations.
      *
      * @param array $array Array containing the values that will be used to
-     *                     create a phpdoc comment. Supported values are:
-     *                     Strings, which could be used for summaries and
-     *                     descriptions; Arrays containing multiple arrays of
-     *                     strings, which can be used to create tables like
-     *                     argument lists or group document tags that go along
-     *                     together; And finally arrays of strings, which may be
-     *                     used for single row tables like the ‘@return’ tag.
-     *                     Array keys don't make a difference, so you may use
-     *                     them or omit them at will without any repercussion.
+     *                     create a doc block. Supported values are: Strings,
+     *                     which could be used for summaries and descriptions;
+     *                     Arrays containing multiple arrays of strings, which
+     *                     can be used to create tables like argument lists or
+     *                     group document tags that go along together; And
+     *                     finally arrays of strings, which may be used for
+     *                     single row tables like the ‘@return’ tag. Array keys
+     *                     don't make a difference, so you may use them or omit
+     *                     them at will without any repercussion.
      *
-     * @return string Phpdoc comment created from the array given.
+     * @return string Doc block created from the array given.
      */
     public function fromArray(array $array): string
     {
         $array = $this->convertStringsToOneRowOneColumnTables($array);
         $array = $this->convertArraysOfStringsToOneRowMultiClmnsTables($array);
-        $phpdocBlocks = array_map(
-            fn($table) => $this->createPhpdocBlock($table),
+        $docBlockParts = array_map(
+            fn($table) => $this->createDocBlockPart($table),
             $array
         );
-        return $this->createPhpdocFromBlocks($phpdocBlocks);
+        return $this->createDocBlockFromParts($docBlockParts);
     }
 
     /**
@@ -117,7 +117,7 @@ class PhpdocGenerator
     /**
      * @param array $table
      */
-    protected function createPhpdocBlock(array $table): string
+    protected function createDocBlockPart(array $table): string
     {
         $table = array_map('array_values', $table);
         $columnsWidth = $this->getColumnsWidth($table);
@@ -238,15 +238,15 @@ class PhpdocGenerator
     }
 
     /**
-     * @param array $blocks
+     * @param array $parts
      */
-    protected function createPhpdocFromBlocks(array $blocks): string
+    protected function createDocBlockFromParts(array $parts): string
     {
         $opener = "/**";
         $closer = ' */';
-        $blocks = array_values($blocks);
-        if (count($blocks) == 1 && !str_contains("\n", $blocks[0])) {
-            $oneLiner = $opener . ' ' . $blocks[0] . $closer;
+        $parts = array_values($parts);
+        if (count($parts) == 1 && !str_contains("\n", $parts[0])) {
+            $oneLiner = $opener . ' ' . $parts[0] . $closer;
             $length = $this->indentWidth + strlen($oneLiner);
             if ($length <= $this->maxLineLength) {
                 return $this->indentStr() . $oneLiner;
@@ -255,18 +255,18 @@ class PhpdocGenerator
         $opening = $this->indentStr() . $opener . $this->lineStart();
         $closing = "\n" . $this->indentStr() . $closer;
         $separator = "\n" . $this->indentStr() . " *" . $this->lineStart();
-        return $opening . join($separator, $blocks) . $closing;
+        return $opening . join($separator, $parts) . $closing;
     }
 
     /**
      * Sets the value of the 'indentWidth' property.
      *
      * If a value greater than 0 is stablished, an indentation will be given to
-     * the resulting phpdoc comment. If property ‘useTabForIndentation’ is set
-     * to true, a single tab will be used and this value will be used as a
-     * reference of its size (in spaces) to construct the phpdoc comment,
-     * otherwise a set of spaces will be used as indentation using this property
-     * as the amount of spaces to use.
+     * the resulting doc block. If property ‘useTabForIndentation’ is set to
+     * true, a single tab will be used and this value will be used as a
+     * reference of its size (in spaces) to construct the doc block, otherwise
+     * a set of spaces will be used as indentation using this property as the
+     * amount of spaces to use.
      */
     public function setIndentWidth(int $width): self
     {
