@@ -1,9 +1,9 @@
 {
     "name": "arielenter/array-to-phpdoc",
     "description": "Generates phpdoc comments.",
-    "version": "1.2.1",
+    "version": "2.0.0",
     "dist": {
-        "url": "https://github.com/arielenter/array-to-phpdoc/archive/refs/tags/v1.2.1.tar.gz",
+        "url": "https://github.com/arielenter/array-to-phpdoc/archive/refs/tags/v2.0.0.tar.gz",
         "type": "tar"
     },
     "require-dev": {
